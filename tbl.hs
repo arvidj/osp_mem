@@ -12,10 +12,10 @@ main = do
   vals <- readFile "rawstats" >>= return . read
   -- min_free is same for each group in this; lots_free is same for the heads
   -- of every group
-  let groups = (group 10 (vals :: [Double]))
+  let groups = (group 5 (vals :: [Double]))
   let a = map (\(p,v) -> (pad 16 p) ++ padded v)
-                         (zip (zipWith (++) indent (map show [2,5..])) groups)
-  let upper = "lots_free ->    "++concat (map (pad 8 . show) [2,5..30])++"\n"
+                         (zip (zipWith (++) indent (map show [2..])) groups)
+  let upper = "lots_free ->    "++concat (map (pad 8 . show) [2..6])++"\n"
   let table = "   min_free v\n" ++ upper ++ unlines a
   putStrLn table
  where

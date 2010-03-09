@@ -7,6 +7,7 @@
 
 #include <stdio.h>
 #include <assert.h>
+#include "values.h"
 
 /* OSP constants */
 
@@ -158,17 +159,19 @@ extern gen_int_handler();
 #define   UNLOCKED        0
 #define   MAX_SIZE      MAX_PAGE*PAGE_SIZE /* max size of a job allowed     */
 
-#define   MIN_FREE        7
-#define   LOTS_FREE       3
+// #define   MIN_FREE        7
+// #define   LOTS_FREE       3
+extern int min_free;
+extern int lots_free;
+
+
+
 
 #define get_page_tbl(pcb)		pcb->page_tbl
 
 #define lock_frame(frame_id)		Frame_Tbl[frame_id].lock_count++
 #define unlock_frame(frame_id)		Frame_Tbl[frame_id].lock_count--
 #define set_frame_dirty(frame_id)	Frame_Tbl[frame_id].dirty = true
-
-// true when frame  is _not_ FREE and _not_ LOCKED
-#define swapout_able(frame_id) (!(Frame_Tbl[frame_id].free) && Frame_Tbl[frame_id].lock_count == 0)
 
 /* external variables */
 
@@ -220,7 +223,6 @@ int    page_id;
 	// Find a free frame and put the requested page in there.
 
 	if (n_free_frames < MIN_FREE) {
-		// printf("Start page daemon in get page because n free: %d\n", n_free_frames);
 		page_daemon(); 
 	}
 
@@ -228,21 +230,9 @@ int    page_id;
 	for (i = 0; i < MAX_FRAME;  i++) {
 		// if the frame is free, give it to this process
 		if (Frame_Tbl[i].free && Frame_Tbl[i].lock_count == 0) {
-			// assert(Frame_Tbl[i].lock_count == 0);
 			
 			// actually read the page from the drum into the frame
 			siodrum(read, pcb, page_id, i);
-
-			/*
-			printf(
-				"get page: %d, pcb_id: %d, frame: %d, old page_id for this frame: %d\n",
-				page_id,
-				pcb->pcb_id,
-				i,
-				Frame_Tbl[i].page_id
-			);
-			*/
-			// printf("Old page id was: %d\n", );
 			
 			
 			Frame_Tbl[i].pcb = pcb;
@@ -265,83 +255,17 @@ int    page_id;
 			
 			n_free_frames--;
 			// finished
-
-			/* print_frame_tbl(); */
-/* 			print_sim_frame_tbl(); */
 			return;
 		}
-	}
-
-	//assert(false);
-	/* printf("random\n"); */
-/* 	int freed = 0; */
-/* 	int max_freed = 5; */
-/* 	for (i = 0; i < MAX_FRAME && freed < max_freed;  i++) { */
-/* 		if (swapout_able(i)) { */
-/* 			// If the frame is dirty, swap it out of memory */
-/* 			if (Frame_Tbl[i].dirty) { */
-/* 				// writes the frame from memory to drum */
-/* 				siodrum(write, pcb, page_id, i); */
-/* 			} */
-			
-
-			
-/* 			// it can no longer be dirty */
-/* 			printf("Setting %d clean in random\n", i); */
-/* 			Frame_Tbl[i].dirty = false; */
-			
-/* 			// the frame is now free */
-/* 			Frame_Tbl[i].free = true; */
-			
-/* 			// update the page_tbl of the process that was holding the */
-/* 			// flag, so that that process knows that its precious page */
-/* 			// is now banned to the drum */
-/* 			Frame_Tbl[i].pcb->page_tbl-> */
-/* 				page_entry[Frame_Tbl[i].page_id].valid = false; */
-/* 		} */
-/* 	} */
-
-/* 	if (n_free_frames < MIN_FREE) { */
-/* 		printf("Start page daemon after random because n free: %d\n", n_free_frames); */
-/* 		page_daemon(); */
-/* 	} */
-	
-	// read it it?
-	
-	
-	// 4) if less than x free frames exist:
-	// 5) ...
-
-	
-	// find a page r in memory to replace with page_id
-	// maybe there is a free page?
-	// if this page r is dirty, save it to drum
-	
+	}	
 }
 
 void page_daemon() {
-	// printf("> Page daemon\n");
-
-	// print_sim_frame_tbl();
-	
 	int freed = LOTS_FREE;
-
-	// int max_loops = 2*MAX_FRAME;
-	// int i = 0;
-	
-	while (freed > 0) { //  && i < max_loops) {
-		//assert(clock_hand >= 0 && clock_hand < MAX_FRAME);
-		/*
-		printf("checking frame %d, which is free: %d and lock %d\n",
-			   clock_hand,
-			   Frame_Tbl[clock_hand].free,
-			   Frame_Tbl[clock_hand].lock_count
-		);
-		*/
-		
+	int maxloops = 2*MAX_FRAME;
+	int i = 0;
+	while (freed > 0 && i < maxloops) {
 		if ((!Frame_Tbl[clock_hand].free) && Frame_Tbl[clock_hand].lock_count == 0) {
-			// printf("swappable\n");
-			
 			int page_id = Frame_Tbl[clock_hand].page_id;
 			BOOL ref = Frame_Tbl[clock_hand].pcb->page_tbl->page_entry[page_id].ref; 
 
@@ -349,7 +273,6 @@ void page_daemon() {
 			if (ref) {
 				Frame_Tbl[clock_hand].pcb->page_tbl->page_entry[page_id].ref = false;
 			} else {
-				// print_sim_frame_tbl();
 				// If the frame is dirty, swap it out of memory
 				if (Frame_Tbl[clock_hand].dirty) {
 					// writes the frame from memory to drum
@@ -382,23 +305,12 @@ void page_daemon() {
 				// revolution.
 				n_free_frames++;
 				freed--;
-				/* printf("FREEDOM\n"); */
-/* 				print_sim_frame_tbl(); */
 			}
 		}
-
-		// i++;
+		
+		i++;
 		clock_hand = (clock_hand + 1) % MAX_FRAME;
     }
-
-	/* if (i > max_loops) { */
-/* 		printf("quit due to max loops\n"); */
-/* 	} */
-	
-		
-	
-	// printf("< Page daemon \n");
-	
 }
 	
 
@@ -417,25 +329,12 @@ PUBLIC
 deallocate(pcb)
 PCB *pcb;
 {
-	// printf("> deallocate for %d\n", pcb->pcb_id);
-	/* print_frame_tbl(pcb->page_tbl); */
-/* 	print_sim_frame_tbl(pcb->page_tbl); */
-/* 	print_page_tbl(pcb->page_tbl); */
-	
-	
-		
 	// clear the free flag
 	int i;
 	for (i = 0; i < MAX_PAGE;  i++) { 
 		int frame_id = pcb->page_tbl->page_entry[i].frame_id;
 		if (pcb->page_tbl->page_entry[i].valid) {
-			/* printf( */
-/* 				"clearing page %d associated with frame %d\n", */
-/* 				i, frame_id); */
-/* 			printf("Setting frame %d clean in deallocate for process %d\n", frame_id, pcb->pcb_id); */
-
 			pcb->page_tbl->page_entry[i].valid = false;
-			
 			// do not know if needed
 			Frame_Tbl[frame_id].dirty = false;
 			// Frame_Tbl[frame_id].valid = ?;  //valid flag should be cleared
@@ -445,14 +344,7 @@ PCB *pcb;
 
 			n_free_frames++;
 		}
-		
-
-		// doesnt matter if dirty
-		// or if lock_count > 0?=????
 	}
-	/* print_frame_tbl(); */
-/* 	print_sim_frame_tbl(); */
-	// printf("< deallocate\n");
 }
   
 

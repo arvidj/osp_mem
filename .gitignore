@@ -1,4 +1,6 @@
 /OSP
 /bak
 /simulation.run
-
+/*.o
+faults.tmp
+nul
